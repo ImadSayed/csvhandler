@@ -40,6 +40,15 @@ class Data extends Model
             }
         }
 
+        if (empty($responseData)) {
+            return [
+                'status_code' => '400',
+                'name' => 'error',
+                'message' => 'No valid person data found in the CSV file.',
+                'data' => []
+            ];
+        }
+
         return [
             'status_code' => $response['status_code'],
             'name' => $response['name'],

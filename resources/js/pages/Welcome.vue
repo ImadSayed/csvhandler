@@ -13,6 +13,7 @@ let result = '';
 
 
 async function handleFileUpload(event) {
+    result = ''; // reset result
     light = 0; // reset light to neutral
     if (form.file.length === 0) {
         alert('Please select a CSV file to upload.');

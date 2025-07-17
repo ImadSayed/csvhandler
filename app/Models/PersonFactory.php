@@ -31,6 +31,11 @@ class PersonFactory extends Model
             return [];
         }
 
+        if (!in_array(ucfirst(strtolower(substr($str, 0, strpos($str, ' ')))), self::POTENTIAL_TITLES)) {
+            // If the string does not start with a potential title then
+            return [];
+        }
+
         // Initialize arrays to hold Person objects and their attributes
         $persons = [];
         $titles = [];
@@ -48,26 +53,19 @@ class PersonFactory extends Model
         $personData = $this->extractPersonData($potentialPersons);
         extract($personData);
 
-        // if there are more titles than last names, we assume that the last name is the same for all titles
-        if (count($titles) !== count($lastNames)) {
-            foreach ($titles as $title) {
-                $person = new Person();
-                $person->setTitle($title);
-                $person->setInitial($initials[0] ?? null);
-                $person->setFirstname($firstNames[0] ?? null);
-                $person->setLastname($lastNames[0]);
-                $persons[] = $person->toArray();
-            }
-            return $persons;
-        }
-
-        //otherwise, we create a Person object for each title, first name, initial and last name
         foreach ($titles as $index => $title) {
             $person = new Person();
             $person->setTitle($title);
-            $person->setInitial($initials[$index] ?? null);
-            $person->setFirstname($firstNames[$index] ?? null);
-            $person->setLastname($lastNames[$index]);
+            $person->setFirstname($firstNames[$index]);
+            $person->setInitial($initials[$index]);
+
+            // if there is no last name, we can assume that there is only a title and the last 
+            // name is the same as the last name of the last person
+            if (empty($lastNames[$index])) {
+                $person->setLastname($lastNames[count($lastNames) - 1]);
+            } else {
+                $person->setLastname($lastNames[$index]);
+            }
             $persons[] = $person->toArray();
         }
         return $persons;
@@ -120,18 +118,24 @@ class PersonFactory extends Model
 
         // Loop through each potential person string and extract titles, initials, first names, and last names
         // We assume that the first word is a title, and the last word is a last name.
-        foreach ($potentialPersons as $personString) {
+        foreach ($potentialPersons as $key => $personString) {
             $personString = trim((string)$personString);
             $personString = str_replace(".", "", $personString);//remove any dots from the string
 
             if (in_array(ucfirst(strtolower($personString)), self::POTENTIAL_TITLES)) {
                 //only a title exists in this string
-                $titles[] = $personString;
+                $titles[$key] = $personString;
+                $initials[$key] = null;
+                $firstNames[$key] = null;
+                $lastNames[$key] = null;
                 continue;
             }
 
-            $titles[] = substr($personString, 0, strpos($personString, ' ')); //we assume the first word is a title
-            $personString = substr($personString, strpos($personString, ' ') + 1); //remove the title from the string
+            //we assume the first word is a title
+            $titles[$key] = substr($personString, 0, strpos($personString, ' '));
+            
+            //remove the title from the string
+            $personString = substr($personString, strpos($personString, ' ') + 1);
             $numberOfSpaces = substr_count($personString, ' ');
 
             if ($numberOfSpaces === 1) {
@@ -139,16 +143,18 @@ class PersonFactory extends Model
                 $names = explode(' ', $personString);
 
                 if (strlen($names[0]) == 1) {
-                    $initials[] = $names[0];
+                    $initials[$key] = $names[0];
+                    $firstNames[$key] = null;
                 } else {
-                    $firstNames[] = $names[0];
+                    $initials[$key] = null;
+                    $firstNames[$key] = $names[0];
                 }
-                $lastNames[] = $names[1];
+                $lastNames[$key] = $names[1];
             } elseif ($numberOfSpaces === 0) {
                 //only a last name exists in this string
-                $lastNames[] = $personString;
-                $firstNames[] = null;
-                $initials[] = null;
+                $lastNames[$key] = $personString;
+                $firstNames[$key] = null;
+                $initials[$key] = null;
 
             }
         }
